@@ -14,7 +14,7 @@ let game = null;
 let raf = 0;
 let last = 0;
 let playing = false;
-let selectedDiff = 'easy';
+let selectedDiff = 'normal';
 
 const STORAGE_KEY = 'br_lite_v1';
 
@@ -466,5 +466,5 @@ if (stored.muted && typeof SFX !== 'undefined') {
   if (!SFX.isMuted()) SFX.toggleMute();
   if (muteBtn) muteBtn.textContent = '音效：关';
 }
-setDifficulty(stored.difficulty || 'easy');
+setDifficulty(stored.difficulty || 'normal');
 refreshBestScoreUI();

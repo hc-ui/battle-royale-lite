@@ -189,10 +189,10 @@ function createLoot(buildings) {
   // 出生点附近保底物资
   const cx = WORLD.size / 2;
   const cy = WORLD.size / 2;
-  loot.push(makeLootItem(cx + 40, cy + 20, 'weapon', 'pistol'));
-  loot.push(makeLootItem(cx - 50, cy + 30, 'ammo', null, 40));
-  loot.push(makeLootItem(cx + 20, cy - 55, 'medkit', null, 1));
-  loot.push(makeLootItem(cx - 30, cy - 40, 'armor', null, 50));
+  // 出生点只有少量保底，不再白给套装
+  loot.push(makeLootItem(cx + 55, cy + 30, 'weapon', 'pistol'));
+  loot.push(makeLootItem(cx - 40, cy + 45, 'ammo', null, 20));
+  if (Math.random() < 0.45) loot.push(makeLootItem(cx + 25, cy - 50, 'medkit', null, 1));
   // 地图上固定刷新几把狙击（稀有）
   const sniperSpots = [
     [320, 360], [1680, 380], [350, 1620], [1650, 1580], [1000, 280], [1000, 1720],

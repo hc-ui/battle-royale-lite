@@ -1,7 +1,11 @@
 let nameIndex = 0;
 
 function createPlayer(x, y) {
-  const pistol = cloneWeapon(WEAPONS.pistol);
+  const giveGun = BALANCE.playerStartAmmo > 0;
+  const pistol = giveGun ? cloneWeapon(WEAPONS.pistol) : null;
+  const weapons = [cloneWeapon(WEAPONS.fists), pistol, null, null];
+  const mag = { fists: Infinity };
+  if (pistol) mag.pistol = Math.min(pistol.magSize, 8);
   return {
     id: 'player',
     name: '你',
@@ -13,24 +17,24 @@ function createPlayer(x, y) {
     maxHp: BALANCE.playerHp,
     armor: BALANCE.playerStartArmor,
     maxArmor: 100,
-    speed: 180,
-    sprintMul: 1.52,
+    speed: 175,
+    sprintMul: 1.48,
     alive: true,
     isPlayer: true,
-    weapons: [cloneWeapon(WEAPONS.fists), pistol, null, null],
-    weaponIndex: 1,
-    mag: { fists: Infinity, pistol: pistol.magSize },
+    weapons: weapons,
+    weaponIndex: pistol ? 1 : 0,
+    mag: mag,
     reserveAmmo: BALANCE.playerStartAmmo,
     medkits: BALANCE.playerStartMedkits,
     kills: 0,
     lastShot: 0,
     reloading: false,
     reloadEnd: 0,
-    invuln: 2,
+    invuln: BALANCE.playerInvuln != null ? BALANCE.playerInvuln : 0.6,
     color: '#3ddc97',
     lastHurt: 0,
     footsteps: 0,
-    scoping: false, // 开镜中
+    scoping: false,
   };
 }
 
@@ -38,6 +42,8 @@ function createBot(buildings, playerPos) {
   let x;
   let y;
   let tries = 0;
+  // 安全距离缩短，落地更容易遭遇
+  const safeDist = GAME_DIFFICULTY === 'hard' ? 180 : GAME_DIFFICULTY === 'normal' ? 220 : 260;
   do {
     x = randRange(80, WORLD.size - 80);
     y = randRange(80, WORLD.size - 80);
@@ -47,19 +53,29 @@ function createBot(buildings, playerPos) {
     (buildings.some(function (b) {
       return x > b.x - 20 && x < b.x + b.w + 20 && y > b.y - 20 && y < b.y + b.h + 20;
     }) ||
-      (playerPos && dist({ x: x, y: y }, playerPos) < 300))
+      (playerPos && dist({ x: x, y: y }, playerPos) < safeDist))
   );
 
   const name = BOT_NAMES[nameIndex % BOT_NAMES.length];
   nameIndex++;
 
-  const starter =
-    Math.random() < 0.25
-      ? cloneWeapon(WEAPONS[Math.random() < 0.75 ? 'pistol' : 'shotgun'])
-      : cloneWeapon(WEAPONS.fists);
+  const armed = Math.random() < (BALANCE.botArmedChance || 0.7);
+  let starter;
+  if (armed) {
+    const roll = Math.random();
+    let id = 'pistol';
+    if (roll < 0.28) id = 'smg';
+    else if (roll < 0.48) id = 'shotgun';
+    else if (roll < 0.68) id = 'rifle';
+    else if (roll < 0.78) id = 'sniper';
+    starter = cloneWeapon(WEAPONS[id]);
+  } else {
+    starter = cloneWeapon(WEAPONS.fists);
+  }
 
   const mag = {};
   mag[starter.id] = starter.magSize === Infinity ? Infinity : starter.magSize;
+  const hp = BALANCE.botHp || 100;
 
   return {
     id: 'bot-' + nameIndex,
@@ -68,33 +84,34 @@ function createBot(buildings, playerPos) {
     y: y,
     r: 14,
     angle: Math.random() * Math.PI * 2,
-    hp: 72,
-    maxHp: 72,
-    armor: Math.random() < 0.1 ? 15 : 0,
+    hp: hp,
+    maxHp: hp,
+    armor: Math.random() < 0.35 ? randRange(20, 50) : (Math.random() < 0.2 ? 15 : 0),
     maxArmor: 100,
-    speed: randRange(112, 138),
-    sprintMul: 1.22,
+    speed: randRange(145, 175),
+    sprintMul: 1.38,
     alive: true,
     isPlayer: false,
     weapons: [starter, null, null, null],
     weaponIndex: 0,
     mag: mag,
-    reserveAmmo: 6 + Math.floor(Math.random() * 14),
-    medkits: Math.random() < 0.12 ? 1 : 0,
+    reserveAmmo: 18 + Math.floor(Math.random() * 40),
+    medkits: Math.random() < 0.35 ? 1 : 0,
     kills: 0,
     lastShot: 0,
     reloading: false,
     reloadEnd: 0,
     invuln: 0,
-    color: 'hsl(' + Math.floor(Math.random() * 360) + ', 38%, 46%)',
-    state: 'loot',
+    color: 'hsl(' + Math.floor(Math.random() * 360) + ', 42%, 48%)',
+    state: Math.random() < (BALANCE.botHuntChance || 0.5) ? 'hunt' : 'loot',
     target: null,
     wanderAngle: Math.random() * Math.PI * 2,
-    stateTimer: 0,
-    aimJitter: randRange(-0.3, 0.3),
+    stateTimer: randRange(0.5, 2),
+    aimJitter: randRange(-0.1, 0.1),
     accuracy: randRange(BALANCE.botAccuracyMin, BALANCE.botAccuracyMax),
-    reaction: randRange(0.25, 0.65),
+    reaction: randRange(0.55, 0.95),
     lastHurt: 0,
+    aggression: randRange(0.55, 1),
   };
 }
 
@@ -257,7 +274,8 @@ function fireWeapon(entity, now, aimAngle, buildings, others, bullets, sparks) {
   else if (canWeaponScope(w) && !scoped) baseSpread = w.spread * 1.15;
 
   for (let i = 0; i < pellets; i++) {
-    let extraSpread = entity.isPlayer ? 0 : 0.14;
+    // 人机散布减小，更会打中
+    let extraSpread = entity.isPlayer ? 0 : 0.04;
     if (entity.isPlayer && scoped) extraSpread = 0;
     const spread = (Math.random() - 0.5) * (baseSpread + extraSpread) * 2;
     const ang = aimAngle + spread;
@@ -354,118 +372,182 @@ function updateBot(bot, dt, now, game) {
     bot.target = null;
   }
 
-  if (bot.hp < 32 && bot.medkits > 0 && Math.random() < 0.02) useMedkit(bot);
+  if (bot.hp < 45 && bot.medkits > 0 && Math.random() < 0.04) useMedkit(bot);
 
   const enemies = game.aliveEntities().filter(function (e) {
     return e !== bot && e.alive;
   });
   let nearestEnemy = null;
   let nearestDist = Infinity;
+  let playerEnemy = null;
+  let playerDist = Infinity;
   for (let i = 0; i < enemies.length; i++) {
-    const d = dist(bot, enemies[i]);
+    const e = enemies[i];
+    const d = dist(bot, e);
     if (d < nearestDist) {
       nearestDist = d;
-      nearestEnemy = enemies[i];
+      nearestEnemy = e;
+    }
+    if (e.isPlayer) {
+      playerEnemy = e;
+      playerDist = d;
     }
   }
 
-  const w = getActiveWeapon(bot);
-  const engageRange = (w.isMelee ? 65 : w.range * 0.5) + BALANCE.botEngageBonus;
+  const huntMul = bot.aggression || 0.7;
+  if (
+    playerEnemy &&
+    playerDist < 520 * huntMul + (BALANCE.botEngageBonus || 80) &&
+    bot.state !== 'zone' &&
+    Math.random() < (BALANCE.botHuntChance || 0.5) * 0.08
+  ) {
+    bot.state = 'hunt';
+    bot.target = playerEnemy;
+  }
 
-  if (bot.state !== 'zone' && nearestEnemy && nearestDist < engageRange) {
-    if (canSee(bot, nearestEnemy, game.buildings) && Math.random() < bot.reaction * 0.9) {
+  const w = getActiveWeapon(bot);
+  const engageRange = (w.isMelee ? 70 : w.range * 0.72) + (BALANCE.botEngageBonus || 80);
+
+  if (bot.state !== 'zone' && nearestEnemy && nearestDist < engageRange + 80) {
+    const see = canSee(bot, nearestEnemy, game.buildings);
+    if ((see || nearestDist < 140) && Math.random() < bot.reaction) {
       bot.state = 'fight';
       bot.target = nearestEnemy;
     }
+  }
+
+  if (bot.lastHurt > 0.2 && nearestEnemy && nearestDist < engageRange + 120) {
+    bot.state = 'fight';
+    bot.target = nearestEnemy;
   }
 
   if (bot.state === 'zone') {
     const ang = angleTo(bot, { x: game.zone.cx, y: game.zone.cy });
     moveEntity(bot, Math.cos(ang), Math.sin(ang), dt, game.buildings, true);
     bot.angle = ang;
+    if (nearestEnemy && nearestDist < engageRange * 0.9 && canSee(bot, nearestEnemy, game.buildings)) {
+      bot.angle = angleTo(bot, nearestEnemy) + bot.aimJitter * 0.5;
+      maybeBotShoot(bot, now, game);
+    }
     if (!game.zone.isOutside(bot)) {
-      bot.state = 'loot';
-      bot.stateTimer = 2;
+      bot.state = Math.random() < 0.5 ? 'hunt' : 'loot';
+      bot.stateTimer = 1.2;
     }
     return;
   }
 
+  if (bot.state === 'hunt') {
+    const prey = (bot.target && bot.target.alive) ? bot.target : (playerEnemy || nearestEnemy);
+    if (!prey) {
+      bot.state = 'loot';
+      bot.stateTimer = 1;
+    } else {
+      bot.target = prey;
+      const d = dist(bot, prey);
+      bot.angle = angleTo(bot, prey) + bot.aimJitter * (0.8 - bot.accuracy * 0.5);
+      if (d > 60) {
+        moveEntity(bot, Math.cos(bot.angle), Math.sin(bot.angle), dt, game.buildings, d > 180);
+      }
+      if (d < engageRange + 40 && (canSee(bot, prey, game.buildings) || d < 100)) {
+        bot.state = 'fight';
+      }
+      if (bot.stateTimer <= 0 && d > 600) {
+        bot.state = 'loot';
+        bot.stateTimer = 2;
+      }
+    }
+  }
+
   if (bot.state === 'fight' && bot.target && bot.target.alive) {
     const d = dist(bot, bot.target);
-    bot.angle = angleTo(bot, bot.target) + bot.aimJitter * (1.25 - bot.accuracy);
+    const jitterScale = d < 160 ? 0.35 : 0.9;
+    bot.angle = angleTo(bot, bot.target) + bot.aimJitter * (1.05 - bot.accuracy) * jitterScale;
 
-    if (bot.hp < 30 && d < 220) {
+    if (bot.hp < 18 && d < 160 && Math.random() < 0.4) {
       const flee = angleTo(bot.target, bot);
       moveEntity(bot, Math.cos(flee), Math.sin(flee), dt, game.buildings, true);
       bot.angle = flee;
-      bot.stateTimer = 1.2;
-      if (d > 180) {
-        bot.state = 'wander';
-        bot.target = null;
-      }
-      return;
-    }
-
-    if (d > engageRange * 0.72) {
-      moveEntity(bot, Math.cos(bot.angle), Math.sin(bot.angle), dt, game.buildings, false);
-    } else if (d < 95 && !w.isMelee) {
-      moveEntity(bot, -Math.cos(bot.angle), -Math.sin(bot.angle), dt, game.buildings, true);
+    } else if (d > engageRange * 0.55) {
+      moveEntity(bot, Math.cos(bot.angle), Math.sin(bot.angle), dt, game.buildings, d > 200);
+    } else if (d < 70 && !w.isMelee && w.id !== 'shotgun') {
+      moveEntity(bot, -Math.cos(bot.angle), -Math.sin(bot.angle), dt, game.buildings, false);
     } else {
-      const side = Math.cos(bot.angle + Math.PI / 2) * (Math.sin(now / 420) > 0 ? 1 : -1);
-      const sidY = Math.sin(bot.angle + Math.PI / 2) * (Math.sin(now / 420) > 0 ? 1 : -1);
-      moveEntity(bot, side, sidY, dt, game.buildings, false);
+      const side = Math.cos(bot.angle + Math.PI / 2) * (Math.sin(now / 280) > 0 ? 1 : -1);
+      const sidY = Math.sin(bot.angle + Math.PI / 2) * (Math.sin(now / 280) > 0 ? 1 : -1);
+      moveEntity(bot, side * 0.7 + Math.cos(bot.angle) * 0.3, sidY * 0.7 + Math.sin(bot.angle) * 0.3, dt, game.buildings, false);
     }
 
-    if (d < engageRange && canSee(bot, bot.target, game.buildings)) maybeBotShoot(bot, now, game);
+    if (d < engageRange + 30 && (canSee(bot, bot.target, game.buildings) || d < 90)) {
+      maybeBotShoot(bot, now, game);
+    }
 
-    if (d > engageRange + 200 || !bot.target.alive) {
-      bot.state = 'loot';
-      bot.target = null;
-      bot.stateTimer = 1.5;
+    if (d > engageRange + 280 || !bot.target.alive) {
+      bot.state = Math.random() < (BALANCE.botHuntChance || 0.5) ? 'hunt' : 'loot';
+      bot.target = bot.target && bot.target.alive ? bot.target : null;
+      bot.stateTimer = 1.2;
     }
     return;
   }
 
   if (bot.stateTimer <= 0) {
-    let best = null;
-    let bestD = 340;
-    for (let i = 0; i < game.loot.length; i++) {
-      const item = game.loot[i];
-      if (item.taken) continue;
-      const d = dist(bot, item);
-      if (d < bestD) {
-        bestD = d;
-        best = item;
-      }
-    }
-    if (best) {
-      bot.target = best;
-      bot.state = 'loot';
-      bot.stateTimer = 5;
+    const late = game.zone && game.zone.phase >= 1;
+    if (late && nearestEnemy && nearestDist < 480 && Math.random() < 0.55) {
+      bot.state = 'hunt';
+      bot.target = nearestEnemy;
+      bot.stateTimer = 3;
     } else {
-      bot.wanderAngle += randRange(-0.9, 0.9);
-      bot.state = 'wander';
-      bot.stateTimer = randRange(2, 4.5);
-      bot.target = null;
+      let best = null;
+      let bestD = 300;
+      for (let i = 0; i < game.loot.length; i++) {
+        const item = game.loot[i];
+        if (item.taken) continue;
+        const prefer = item.kind === 'weapon' ? 0.65 : 1;
+        const d = dist(bot, item) * prefer;
+        if (d < bestD) {
+          bestD = d;
+          best = item;
+        }
+      }
+      const armed = getActiveWeapon(bot) && !getActiveWeapon(bot).isMelee;
+      if (best && (!armed || Math.random() < 0.55)) {
+        bot.target = best;
+        bot.state = 'loot';
+        bot.stateTimer = 4;
+      } else if (playerEnemy && Math.random() < (BALANCE.botHuntChance || 0.5)) {
+        bot.state = 'hunt';
+        bot.target = playerEnemy;
+        bot.stateTimer = 4;
+      } else {
+        bot.wanderAngle += randRange(-0.7, 0.7);
+        bot.state = 'wander';
+        bot.stateTimer = randRange(1.2, 2.8);
+        bot.target = null;
+      }
     }
   }
 
-  if (bot.state === 'loot' && bot.target && !bot.target.taken) {
+  if (bot.state === 'loot' && bot.target && bot.target.taken === false) {
     const ang = angleTo(bot, bot.target);
     const dLoot = dist(bot, bot.target);
     bot.angle = ang;
-    moveEntity(bot, Math.cos(ang), Math.sin(ang), dt, game.buildings, dLoot > 100);
+    moveEntity(bot, Math.cos(ang), Math.sin(ang), dt, game.buildings, dLoot > 90);
     if (dLoot < 28) {
-      pickupLoot(bot, bot.target);
+      pickupLoot(bot, bot.target, true);
       bot.target = null;
-      bot.stateTimer = 0.3;
+      bot.stateTimer = 0.15;
+      if (Math.random() < 0.6) {
+        bot.state = 'hunt';
+        bot.stateTimer = 2;
+      }
     }
-  } else {
-    moveEntity(bot, Math.cos(bot.wanderAngle), Math.sin(bot.wanderAngle), dt, game.buildings, false);
+  } else if (bot.state === 'wander' || (bot.state !== 'hunt' && bot.state !== 'fight' && bot.state !== 'loot')) {
+    moveEntity(bot, Math.cos(bot.wanderAngle), Math.sin(bot.wanderAngle), dt, game.buildings, Math.random() < 0.3);
     bot.angle = bot.wanderAngle;
     if (bot.x < 40 || bot.x > WORLD.size - 40 || bot.y < 40 || bot.y > WORLD.size - 40) {
       bot.wanderAngle += Math.PI + randRange(-0.5, 0.5);
     }
+  } else if (bot.state === 'loot' && (!bot.target || bot.target.taken)) {
+    bot.stateTimer = 0;
   }
 }
 
@@ -476,11 +558,15 @@ function maybeBotShoot(bot, now, game) {
     tryReload(bot, now);
     return;
   }
-  if (Math.random() > bot.accuracy * BALANCE.botShootChance) return;
+  if (Math.random() > Math.min(0.98, bot.accuracy * BALANCE.botShootChance * 1.15)) return;
+  let ang = bot.angle;
+  if (bot.target && bot.target.alive) {
+    ang = angleTo(bot, bot.target) + bot.aimJitter * (1 - bot.accuracy) * 0.6;
+  }
   const result = fireWeapon(
     bot,
     now,
-    bot.angle,
+    ang,
     game.buildings,
     game.aliveEntities(),
     game.bullets,

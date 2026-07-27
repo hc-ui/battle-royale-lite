@@ -1,36 +1,38 @@
-/** 缩圈系统 — 更慢、更温和 */
+/** 缩圈系统 — 更紧、更疼（受 BALANCE.zoneScale 影响） */
 
 class Zone {
   constructor() {
+    const s = BALANCE.zoneScale != null ? BALANCE.zoneScale : 0.85;
     this.cx = WORLD.size / 2;
     this.cy = WORLD.size / 2;
-    this.radius = WORLD.size * 0.78;
+    this.radius = WORLD.size * 0.72;
     this.targetCx = this.cx;
     this.targetCy = this.cy;
     this.targetRadius = this.radius;
     this.phase = 0;
-    this.timer = 40; // 首圈更久
+    this.timer = Math.max(12, 28 * s);
     this.state = 'wait';
-    this.damage = 1;
+    this.damage = 2.5;
+    // wait/shrink 会乘 zoneScale（越小节奏越快）
     this.phases = [
-      { wait: 40, shrink: 35, radius: WORLD.size * 0.55, dmg: 1.5 },
-      { wait: 28, shrink: 32, radius: WORLD.size * 0.34, dmg: 2.5 },
-      { wait: 22, shrink: 28, radius: WORLD.size * 0.18, dmg: 4 },
-      { wait: 16, shrink: 24, radius: WORLD.size * 0.09, dmg: 7 },
+      { wait: 28 * s, shrink: 26 * s, radius: WORLD.size * 0.48, dmg: 4 },
+      { wait: 18 * s, shrink: 22 * s, radius: WORLD.size * 0.28, dmg: 7 },
+      { wait: 12 * s, shrink: 18 * s, radius: WORLD.size * 0.14, dmg: 12 },
+      { wait: 8 * s, shrink: 14 * s, radius: WORLD.size * 0.06, dmg: 18 },
     ];
     this._pickNextTarget();
   }
 
   _pickNextTarget() {
     if (this.phase >= this.phases.length) {
-      this.targetRadius = Math.max(50, this.radius * 0.55);
-      this.targetCx = this.cx + (Math.random() - 0.5) * this.radius * 0.25;
-      this.targetCy = this.cy + (Math.random() - 0.5) * this.radius * 0.25;
+      this.targetRadius = Math.max(40, this.radius * 0.5);
+      this.targetCx = this.cx + (Math.random() - 0.5) * this.radius * 0.28;
+      this.targetCy = this.cy + (Math.random() - 0.5) * this.radius * 0.28;
       return;
     }
     const p = this.phases[this.phase];
     this.targetRadius = p.radius;
-    const maxShift = Math.max(0, this.radius - this.targetRadius) * 0.45;
+    const maxShift = Math.max(0, this.radius - this.targetRadius) * 0.55;
     this.targetCx = this.cx + (Math.random() - 0.5) * maxShift * 2;
     this.targetCy = this.cy + (Math.random() - 0.5) * maxShift * 2;
     this.targetCx = Math.max(this.targetRadius, Math.min(WORLD.size - this.targetRadius, this.targetCx));
@@ -43,7 +45,7 @@ class Zone {
       if (this.timer <= 0) {
         this.state = 'shrink';
         const p = this.phases[Math.min(this.phase, this.phases.length - 1)];
-        this.timer = p ? p.shrink : 24;
+        this.timer = p ? p.shrink : 16;
         this.shrinkDuration = this.timer;
         this.startRadius = this.radius;
         this.startCx = this.cx;
@@ -51,7 +53,7 @@ class Zone {
       }
     } else {
       const p = this.phases[Math.min(this.phase, this.phases.length - 1)];
-      const dur = this.shrinkDuration || 24;
+      const dur = this.shrinkDuration || 16;
       const t = 1 - Math.max(0, this.timer) / dur;
       const ease = t * t * (3 - 2 * t);
       this.radius = this.startRadius + (this.targetRadius - this.startRadius) * ease;
@@ -64,7 +66,7 @@ class Zone {
         if (p) this.damage = p.dmg;
         this.phase += 1;
         this.state = 'wait';
-        this.timer = this.phases[this.phase] ? this.phases[this.phase].wait : 14;
+        this.timer = this.phases[this.phase] ? this.phases[this.phase].wait : 10;
         this._pickNextTarget();
       }
     }

@@ -1,136 +1,172 @@
-/** 游戏常量与武器 — 休闲优化版 */
+/** 游戏常量与武器 — 加强难度版 */
 
 const WORLD = {
   size: 2000,
-  botCount: 8,
+  botCount: 14,
 };
 
-/** 难度：easy | normal | hard */
-let GAME_DIFFICULTY = 'easy';
+/** 难度：easy | normal | hard —— 默认标准 */
+let GAME_DIFFICULTY = 'normal';
 
 const DIFFICULTY_PRESETS = {
   easy: {
-    botCount: 8,
-    botDamageMul: 0.45,
-    botAccuracyMin: 0.18,
-    botAccuracyMax: 0.42,
-    botShootChance: 0.38,
-    playerHp: 130,
-    playerStartArmor: 50,
-    playerStartMedkits: 3,
-    playerStartAmmo: 100,
+    botCount: 12,
+    botDamageMul: 0.72,
+    botAccuracyMin: 0.38,
+    botAccuracyMax: 0.58,
+    botShootChance: 0.62,
+    botEngageBonus: 70,
+    botHp: 90,
+    botArmedChance: 0.55,
+    botHuntChance: 0.35,
+    playerHp: 110,
+    playerStartArmor: 25,
+    playerStartMedkits: 1,
+    playerStartAmmo: 50,
+    playerInvuln: 1.0,
+    aimAssist: 0.1,
+    zoneScale: 1.0, // 毒圈节奏倍率（越小越紧）
     label: '休闲',
   },
   normal: {
-    botCount: 12,
-    botDamageMul: 0.7,
-    botAccuracyMin: 0.35,
-    botAccuracyMax: 0.6,
-    botShootChance: 0.55,
-    playerHp: 100,
-    playerStartArmor: 25,
-    playerStartMedkits: 1,
-    playerStartAmmo: 60,
-    label: '标准',
-  },
-  hard: {
     botCount: 16,
-    botDamageMul: 1.0,
+    botDamageMul: 0.95,
     botAccuracyMin: 0.5,
-    botAccuracyMax: 0.78,
-    botShootChance: 0.72,
+    botAccuracyMax: 0.72,
+    botShootChance: 0.78,
+    botEngageBonus: 100,
+    botHp: 100,
+    botArmedChance: 0.72,
+    botHuntChance: 0.55,
     playerHp: 100,
     playerStartArmor: 0,
     playerStartMedkits: 0,
-    playerStartAmmo: 30,
+    playerStartAmmo: 24,
+    playerInvuln: 0.6,
+    aimAssist: 0.06,
+    zoneScale: 0.85,
+    label: '标准',
+  },
+  hard: {
+    botCount: 22,
+    botDamageMul: 1.2,
+    botAccuracyMin: 0.62,
+    botAccuracyMax: 0.88,
+    botShootChance: 0.9,
+    botEngageBonus: 140,
+    botHp: 115,
+    botArmedChance: 0.88,
+    botHuntChance: 0.75,
+    playerHp: 90,
+    playerStartArmor: 0,
+    playerStartMedkits: 0,
+    playerStartAmmo: 12,
+    playerInvuln: 0.3,
+    aimAssist: 0.03,
+    zoneScale: 0.7,
     label: '困难',
   },
 };
 
 function applyDifficulty(level) {
-  const p = DIFFICULTY_PRESETS[level] || DIFFICULTY_PRESETS.easy;
+  const p = DIFFICULTY_PRESETS[level] || DIFFICULTY_PRESETS.normal;
   GAME_DIFFICULTY = level;
   WORLD.botCount = p.botCount;
   BALANCE.botDamageMul = p.botDamageMul;
   BALANCE.botAccuracyMin = p.botAccuracyMin;
   BALANCE.botAccuracyMax = p.botAccuracyMax;
   BALANCE.botShootChance = p.botShootChance;
+  BALANCE.botEngageBonus = p.botEngageBonus;
+  BALANCE.botHp = p.botHp;
+  BALANCE.botArmedChance = p.botArmedChance;
+  BALANCE.botHuntChance = p.botHuntChance;
   BALANCE.playerHp = p.playerHp;
   BALANCE.playerStartArmor = p.playerStartArmor;
   BALANCE.playerStartMedkits = p.playerStartMedkits;
   BALANCE.playerStartAmmo = p.playerStartAmmo;
+  BALANCE.playerInvuln = p.playerInvuln;
+  BALANCE.aimAssist = p.aimAssist;
+  BALANCE.scopeAimAssist = Math.max(0.08, p.aimAssist + 0.08);
+  BALANCE.zoneScale = p.zoneScale;
   return p;
 }
 
 const WEAPONS = {
   fists: {
-    id: 'fists', name: '拳头', damage: 16, range: 46, fireRate: 280,
+    id: 'fists', name: '拳头', damage: 14, range: 44, fireRate: 300,
     spread: 0.08, magSize: Infinity, reload: 0, bulletSpeed: 0,
     color: '#ccc', isMelee: true,
   },
   pistol: {
-    id: 'pistol', name: '手枪', damage: 28, range: 360, fireRate: 240,
-    spread: 0.035, magSize: 12, reload: 1000, bulletSpeed: 900,
+    id: 'pistol', name: '手枪', damage: 24, range: 340, fireRate: 250,
+    spread: 0.04, magSize: 12, reload: 1100, bulletSpeed: 900,
     color: '#f4d35e', isMelee: false,
   },
   smg: {
-    id: 'smg', name: '冲锋枪', damage: 17, range: 420, fireRate: 80,
-    spread: 0.08, magSize: 30, reload: 1400, bulletSpeed: 950,
+    id: 'smg', name: '冲锋枪', damage: 15, range: 400, fireRate: 85,
+    spread: 0.085, magSize: 30, reload: 1500, bulletSpeed: 950,
     color: '#4cc9f0', isMelee: false,
   },
   rifle: {
-    id: 'rifle', name: '步枪', damage: 34, range: 580, fireRate: 145,
-    spread: 0.028, magSize: 30, reload: 1700, bulletSpeed: 1100,
+    id: 'rifle', name: '步枪', damage: 30, range: 560, fireRate: 150,
+    spread: 0.03, magSize: 30, reload: 1800, bulletSpeed: 1100,
     color: '#3ddc97', isMelee: false,
   },
   shotgun: {
-    id: 'shotgun', name: '霰弹枪', damage: 15, range: 210, fireRate: 620,
-    spread: 0.18, magSize: 6, reload: 1900, bulletSpeed: 800,
+    id: 'shotgun', name: '霰弹枪', damage: 13, range: 200, fireRate: 650,
+    spread: 0.2, magSize: 6, reload: 2000, bulletSpeed: 800,
     pellets: 6, color: '#ff8fab', isMelee: false,
   },
   sniper: {
-    id: 'sniper', name: '狙击枪', damage: 78, range: 920, fireRate: 1100,
-    spread: 0.14, // 腰射很散
-    scopeSpread: 0.006, // 开镜极准
-    magSize: 5, reload: 2600, bulletSpeed: 1400,
+    id: 'sniper', name: '狙击枪', damage: 72, range: 900, fireRate: 1200,
+    spread: 0.16,
+    scopeSpread: 0.008,
+    magSize: 5, reload: 2800, bulletSpeed: 1400,
     color: '#c084fc', isMelee: false,
     canScope: true,
     scopeZoom: 2.35,
-    scopeMoveMul: 0.55,
+    scopeMoveMul: 0.5,
   },
 };
 
 const LOOT_TYPES = [
-  { kind: 'weapon', weaponId: 'pistol', label: '手枪', color: '#f4d35e', weight: 2.4 },
+  { kind: 'weapon', weaponId: 'pistol', label: '手枪', color: '#f4d35e', weight: 2.6 },
   { kind: 'weapon', weaponId: 'smg', label: '冲锋枪', color: '#4cc9f0', weight: 2.0 },
-  { kind: 'weapon', weaponId: 'rifle', label: '步枪', color: '#3ddc97', weight: 1.5 },
-  { kind: 'weapon', weaponId: 'shotgun', label: '霰弹枪', color: '#ff8fab', weight: 1.7 },
-  { kind: 'weapon', weaponId: 'sniper', label: '狙击枪', color: '#c084fc', weight: 0.9 },
-  { kind: 'ammo', amount: 45, label: '弹药', color: '#ffc857', weight: 4.8 },
-  { kind: 'medkit', amount: 1, label: '医疗包', color: '#3ddc97', weight: 3.8 },
-  { kind: 'armor', amount: 50, label: '护甲', color: '#3a86ff', weight: 3.2 },
+  { kind: 'weapon', weaponId: 'rifle', label: '步枪', color: '#3ddc97', weight: 1.4 },
+  { kind: 'weapon', weaponId: 'shotgun', label: '霰弹枪', color: '#ff8fab', weight: 1.6 },
+  { kind: 'weapon', weaponId: 'sniper', label: '狙击枪', color: '#c084fc', weight: 0.7 },
+  { kind: 'ammo', amount: 30, label: '弹药', color: '#ffc857', weight: 4.0 },
+  { kind: 'medkit', amount: 1, label: '医疗包', color: '#3ddc97', weight: 2.4 },
+  { kind: 'armor', amount: 40, label: '护甲', color: '#3a86ff', weight: 2.2 },
 ];
 
 const BOT_NAMES = [
   'Shadow', 'Viper', 'Nova', 'Rex', 'Kite',
   'Blaze', 'Frost', 'Echo', 'Raven', 'Drift',
   'Pulse', 'Ghost', 'Hawk', 'Bolt', 'Ash',
+  'Zero', 'Luna', 'Ace', 'Jade', 'Orion',
+  'Spectre', 'Wolf', 'Fang', 'Storm', 'Reaper',
 ];
 
 const BALANCE = {
-  botDamageMul: 0.48,
-  botAccuracyMin: 0.2,
-  botAccuracyMax: 0.45,
-  botEngageBonus: 30,
-  botShootChance: 0.4,
-  playerStartArmor: 45,
-  playerStartMedkits: 2,
-  playerStartAmmo: 90,
-  playerHp: 125,
-  autoPickupR: 30,
-  aimAssist: 0.12, // 轻微辅助瞄准
-  lookAhead: 0.18, // 镜头朝瞄准方向微移
-  scopeAimAssist: 0.22, // 开镜时稍强吸附
+  botDamageMul: 0.95,
+  botAccuracyMin: 0.5,
+  botAccuracyMax: 0.72,
+  botEngageBonus: 100,
+  botShootChance: 0.78,
+  botHp: 100,
+  botArmedChance: 0.72,
+  botHuntChance: 0.55,
+  playerStartArmor: 0,
+  playerStartMedkits: 0,
+  playerStartAmmo: 24,
+  playerHp: 100,
+  playerInvuln: 0.6,
+  autoPickupR: 28,
+  aimAssist: 0.06,
+  lookAhead: 0.16,
+  scopeAimAssist: 0.14,
+  zoneScale: 0.85,
 };
 
 function pickLootType() {

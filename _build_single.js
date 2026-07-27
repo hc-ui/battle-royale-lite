@@ -59,11 +59,11 @@ ${css}
           <div><span>部署</span><strong>网页即玩</strong></div>
         </div>
         <div class="diff-row" id="diff-row">
-          <button type="button" class="diff-btn active" data-diff="easy">休闲</button>
-          <button type="button" class="diff-btn" data-diff="normal">标准</button>
+          <button type="button" class="diff-btn" data-diff="easy">休闲</button>
+          <button type="button" class="diff-btn active" data-diff="normal">标准</button>
           <button type="button" class="diff-btn" data-diff="hard">困难</button>
         </div>
-        <p class="menu-tips" id="menu-diff-tip">当前难度：休闲 · 8 人机</p>
+        <p class="menu-tips" id="menu-diff-tip">当前难度：标准 · 16 人机 · 会主动追杀</p>
         <button id="btn-start" class="btn primary" type="button">开始匹配</button>
         <div class="menu-actions">
           <button id="btn-share" class="btn ghost" type="button">复制链接分享</button>
