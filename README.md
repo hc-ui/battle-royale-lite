@@ -1,12 +1,10 @@
-# 大逃杀 · 轻量版 (Battle Royale Lite)
+# Battle Royale Lite
 
-浏览器即玩的俯视角吃鸡：缩圈、搜打装、人机、**狙击开镜**。
+Browser top-down battle royale: shrinking zone, loot, bots, sniper ADS. Click to play, no install.
 
-## 在线游玩
+**[Play →](https://hc-ui.github.io/battle-royale-lite/)**
 
-**https://hc-ui.github.io/battle-royale-lite/**
-
-把链接发给朋友即可，无需安装。
+Same game, Chinese repo name: [xiaoyouxi-shishou](https://github.com/hc-ui/xiaoyouxi-shishou).
 
 ## 本地打开
 
