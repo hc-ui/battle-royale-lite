@@ -20,7 +20,6 @@ function createWorld() {
 
 function createBuildings() {
   const buildings = [];
-  // 几个预设小镇簇 + 随机散布
   const clusters = [
     { x: 420, y: 480 },
     { x: 1500, y: 520 },
@@ -62,7 +61,6 @@ function tryAddBuilding(buildings, x, y) {
     roof: pal.roof,
     trim: pal.trim,
     window: pal.window,
-    // 兼容旧字段
     color: pal.wall,
     doorSide: Math.floor(Math.random() * 4),
     style: Math.random() < 0.3 ? 'warehouse' : 'house',
@@ -71,7 +69,6 @@ function tryAddBuilding(buildings, x, y) {
 }
 
 function createRoads(buildings) {
-  // 十字主干道 + 几条斜路
   const roads = [
     { x1: 80, y1: WORLD.size / 2, x2: WORLD.size - 80, y2: WORLD.size / 2, w: 42 },
     { x1: WORLD.size / 2, y1: 80, x2: WORLD.size / 2, y2: WORLD.size - 80, w: 42 },
@@ -79,7 +76,6 @@ function createRoads(buildings) {
     { x1: 300, y1: 1600, x2: 1650, y2: 1400, w: 28 },
     { x1: 250, y1: 900, x2: 800, y2: 400, w: 24 },
   ];
-  // 连接部分建筑的小径
   for (let i = 0; i < Math.min(8, buildings.length); i++) {
     const b = buildings[i];
     roads.push({
@@ -113,7 +109,6 @@ function createPonds(buildings) {
 
 function createTrees(buildings, ponds) {
   const trees = [];
-  // 移动端 / 低性能少画树
   const isMobile = typeof window !== 'undefined' && (window.innerWidth < 900 || /Mobile|Android/i.test(navigator.userAgent || ''));
   const treeCount = isMobile ? 90 : 150;
   for (let i = 0; i < treeCount; i++) {
@@ -121,7 +116,6 @@ function createTrees(buildings, ponds) {
     const y = randRange(40, WORLD.size - 40);
     if (nearBuilding(x, y, buildings, 18)) continue;
     if (nearPond(x, y, ponds, 10)) continue;
-    // 路边少一点
     if (Math.abs(x - WORLD.size / 2) < 30 || Math.abs(y - WORLD.size / 2) < 30) {
       if (Math.random() < 0.7) continue;
     }
@@ -171,7 +165,7 @@ function nearPond(x, y, ponds, pad) {
 function createLoot(buildings) {
   const loot = [];
   for (const b of buildings) {
-    const n = 2 + Math.floor(Math.random() * 2); // 建筑旁更多物资
+    const n = 2 + Math.floor(Math.random() * 2);
     for (let i = 0; i < n; i++) {
       const side = Math.floor(Math.random() * 4);
       let x, y;
@@ -182,18 +176,14 @@ function createLoot(buildings) {
       loot.push(makeLootItem(x, y));
     }
   }
-  // 野外
   for (let i = 0; i < 55; i++) {
     loot.push(makeLootItem(randRange(50, WORLD.size - 50), randRange(50, WORLD.size - 50)));
   }
-  // 出生点附近保底物资
   const cx = WORLD.size / 2;
   const cy = WORLD.size / 2;
-  // 出生点只有少量保底，不再白给套装
   loot.push(makeLootItem(cx + 55, cy + 30, 'weapon', 'pistol'));
   loot.push(makeLootItem(cx - 40, cy + 45, 'ammo', null, 20));
   if (Math.random() < 0.45) loot.push(makeLootItem(cx + 25, cy - 50, 'medkit', null, 1));
-  // 地图上固定刷新几把狙击（稀有）
   const sniperSpots = [
     [320, 360], [1680, 380], [350, 1620], [1650, 1580], [1000, 280], [1000, 1720],
   ];
@@ -201,6 +191,12 @@ function createLoot(buildings) {
     if (Math.random() < 0.72) {
       loot.push(makeLootItem(sniperSpots[i][0], sniperSpots[i][1], 'weapon', 'sniper'));
     }
+  }
+  for (let i = 0; i < loot.length; i++) {
+    const dummy = { x: loot[i].x, y: loot[i].y, r: 12 };
+    resolveCircleBuilding(dummy, buildings);
+    loot[i].x = dummy.x;
+    loot[i].y = dummy.y;
   }
   return loot;
 }
@@ -252,24 +248,82 @@ function makeLootItem(x, y, forceKind, forceWeapon, forceAmount) {
 }
 
 function resolveCircleBuilding(entity, buildings) {
-  for (const b of buildings) {
+  if (!entity || !buildings) return;
+  const r = entity.r || 14;
+  for (let pass = 0; pass < 3; pass++) {
+    let moved = false;
+    for (let i = 0; i < buildings.length; i++) {
+      const b = buildings[i];
+      const nearestX = Math.max(b.x, Math.min(entity.x, b.x + b.w));
+      const nearestY = Math.max(b.y, Math.min(entity.y, b.y + b.h));
+      const dx = entity.x - nearestX;
+      const dy = entity.y - nearestY;
+      const d = Math.hypot(dx, dy);
+      if (d < r) {
+        moved = true;
+        if (d < 1e-8) {
+          const left = entity.x - b.x;
+          const right = b.x + b.w - entity.x;
+          const top = entity.y - b.y;
+          const bottom = b.y + b.h - entity.y;
+          const m = Math.min(left, right, top, bottom);
+          if (m === left) entity.x = b.x - r - 0.5;
+          else if (m === right) entity.x = b.x + b.w + r + 0.5;
+          else if (m === top) entity.y = b.y - r - 0.5;
+          else entity.y = b.y + b.h + r + 0.5;
+        } else {
+          const push = (r - d) / d;
+          entity.x += dx * push;
+          entity.y += dy * push;
+        }
+      }
+    }
+    entity.x = Math.max(r, Math.min(WORLD.size - r, entity.x));
+    entity.y = Math.max(r, Math.min(WORLD.size - r, entity.y));
+    if (!moved) break;
+  }
+}
+
+function circleHitsBuilding(entity, buildings) {
+  if (!entity || !buildings) return false;
+  const r = entity.r || 14;
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
     const nearestX = Math.max(b.x, Math.min(entity.x, b.x + b.w));
     const nearestY = Math.max(b.y, Math.min(entity.y, b.y + b.h));
-    const dx = entity.x - nearestX;
-    const dy = entity.y - nearestY;
-    const d = Math.hypot(dx, dy);
-    if (d < entity.r) {
-      if (d === 0) {
-        entity.x = b.x - entity.r - 1;
-      } else {
-        const push = (entity.r - d) / d;
-        entity.x += dx * push;
-        entity.y += dy * push;
+    if (Math.hypot(entity.x - nearestX, entity.y - nearestY) < r - 0.05) return true;
+  }
+  return false;
+}
+
+function resolveLivingOverlaps(entities) {
+  if (!entities) return;
+  for (let i = 0; i < entities.length; i++) {
+    const a = entities[i];
+    if (!a || !a.alive) continue;
+    for (let j = i + 1; j < entities.length; j++) {
+      const b = entities[j];
+      if (!b || !b.alive) continue;
+      let dx = a.x - b.x;
+      let dy = a.y - b.y;
+      let d = Math.hypot(dx, dy);
+      const minD = (a.r || 14) + (b.r || 14);
+      if (d < 1e-6) {
+        dx = 1;
+        dy = 0;
+        d = 1;
+      }
+      if (d < minD) {
+        const push = (minD - d) / 2;
+        const nx = dx / d;
+        const ny = dy / d;
+        a.x += nx * push;
+        a.y += ny * push;
+        b.x -= nx * push;
+        b.y -= ny * push;
       }
     }
   }
-  entity.x = Math.max(entity.r, Math.min(WORLD.size - entity.r, entity.x));
-  entity.y = Math.max(entity.r, Math.min(WORLD.size - entity.r, entity.y));
 }
 
 function lineHitsBuilding(x1, y1, x2, y2, buildings) {
