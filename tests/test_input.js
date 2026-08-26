@@ -29,3 +29,10 @@ test('touch on HUD buttons does not start firing', () => {
   const src = fs.readFileSync(path.join(root, 'js', 'main.js'), 'utf8');
   assert.match(src, /closest\('button, \.slot, \.screen, #weapon-slots'\)/);
 });
+
+test('weapon slots receive clicks through the bottom HUD', () => {
+  const css = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
+  assert.match(css, /#bottom-hud\s*\{[^}]*pointer-events:\s*none/);
+  assert.match(css, /#weapon-slots\s*\{[^}]*pointer-events:\s*auto/);
+  assert.match(css, /\.slot\[data-slot\]\s*\{[^}]*pointer-events:\s*auto/);
+});
