@@ -7,7 +7,7 @@ function stripBom(s) {
 }
 
 const css = stripBom(fs.readFileSync(path.join(dir, 'css/style.css'), 'utf8'));
-const jsFiles = ['config.js', 'audio.js', 'world.js', 'zone.js', 'entities.js', 'game.js', 'spawn_spacing.js', 'main.js']
+const jsFiles = ['config.js', 'audio.js', 'world.js', 'zone.js', 'entities.js', 'game.js', 'spawn_spacing.js', 'opening_grace.js', 'main.js']
   .map((f) => stripBom(fs.readFileSync(path.join(dir, 'js', f), 'utf8')))
   .join('\n\n');
 
@@ -75,12 +75,20 @@ ${css}
           <ul>
             <li><kbd>W A S D</kbd> 移动 · <kbd>Shift</kbd> 冲刺</li>
             <li><kbd>鼠标</kbd> 瞄准 · <kbd>左键</kbd> 射击</li>
-            <li><kbd>右键</kbd> / <kbd>C</kbd> 狙击开镜（约 2.3×）</li>
+            <li><kbd>右键</kbd> / <kbd>C</kbd> 狙击开镜（约 2.3	imes）</li>
             <li><kbd>R</kbd> 换弹 · <kbd>F</kbd> 拾枪 · 补给自动捡</li>
             <li><kbd>1-4</kbd> 切枪 · <kbd>Q/E</kbd> 医疗 · <kbd>M</kbd> 音效</li>
           </ul>
         </div>
         <p class="menu-tips">纯前端单机 · 可发给好友用浏览器打开</p>
+      </div>
+    </div>
+
+    <div id="match-overlay" class="screen hidden" aria-live="polite">
+      <div class="menu-card small">
+        <p class="badge">MATCHMAKING</p>
+        <h2 id="match-overlay-text">正在匹配…</h2>
+        <p class="menu-tips" id="match-overlay-tip">准备部署</p>
       </div>
     </div>
 
