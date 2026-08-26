@@ -391,6 +391,10 @@ kbd {
   margin-left: auto;
 }
 
+#weapon-slots {
+  pointer-events: auto;
+}
+
 .slot {
   width: 64px;
   height: 56px;
@@ -404,6 +408,11 @@ kbd {
   font-size: 0.7rem;
   color: var(--muted);
   backdrop-filter: blur(8px);
+}
+
+.slot[data-slot] {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .slot.active {
@@ -604,4 +613,12 @@ kbd {
 #pause, #result {
   background: rgba(5, 8, 12, 0.72);
   backdrop-filter: blur(6px);
+}
+
+#match-overlay {
+  z-index: 22;
+}
+
+#match-overlay h2 {
+  margin-bottom: 8px;
 }

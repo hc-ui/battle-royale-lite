@@ -15,6 +15,7 @@ let raf = 0;
 let last = 0;
 let playing = false;
 let selectedDiff = 'normal';
+let matchLock = false;
 
 const STORAGE_KEY = 'br_lite_v1';
 
@@ -119,14 +120,42 @@ function setDifficulty(level) {
   if (tip) tip.textContent = '当前难度：' + label + ' · ' + rosterLabel(WORLD.botCount);
 }
 
+function requestMatch() {
+  if (matchLock) return;
+  if (playing && game && !game.ended) return;
+  matchLock = true;
+  applyDifficulty(selectedDiff);
+  const overlay = $('match-overlay');
+  const text = $('match-overlay-text');
+  const tip = $('match-overlay-tip');
+  const preset = DIFFICULTY_PRESETS[selectedDiff] || {};
+  if (text) text.textContent = '正在匹配…';
+  if (tip) tip.textContent = (preset.label || selectedDiff) + ' · ' + rosterLabel(WORLD.botCount);
+  hide(menu);
+  hide(resultScreen);
+  hide(pauseScreen);
+  if (overlay) overlay.classList.remove('hidden');
+  const startBtn = $('btn-start');
+  const againBtn = $('btn-again');
+  if (startBtn) startBtn.blur();
+  if (againBtn) againBtn.blur();
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      startGame();
+    });
+  });
+}
+
 function startGame() {
   try {
     if (typeof SFX !== 'undefined') SFX.unlock();
     applyDifficulty(selectedDiff);
     game = new Game();
+    if (typeof window !== 'undefined') window.game = game;
     hide(menu);
     hide(resultScreen);
     hide(pauseScreen);
+    hide($('match-overlay'));
     show(hud);
     if (hud) hud.classList.add('playing');
     playing = true;
@@ -134,11 +163,13 @@ function startGame() {
     pointer.y = window.innerHeight / 2;
     pointer.down = false;
     pointer.right = false;
+    updateHud();
     updateCrosshair();
     syncMouseToGame();
     try { window.focus(); } catch (e) {}
     last = performance.now();
     cancelAnimationFrame(raf);
+    matchLock = false;
     loop(last);
 
     var hint = $('move-hint');
@@ -149,21 +180,30 @@ function startGame() {
     }
   } catch (err) {
     console.error(err);
+    playing = false;
+    game = null;
+    matchLock = false;
+    hide(hud);
+    hide($('match-overlay'));
+    show(menu);
     alert('启动失败: ' + (err && err.message ? err.message : err));
   }
 }
 
 function backToMenu() {
   playing = false;
+  matchLock = false;
   cancelAnimationFrame(raf);
   hide(hud);
   hide(pauseScreen);
   hide(resultScreen);
+  hide($('match-overlay'));
   show(menu);
   if (hud) hud.classList.remove('playing');
   pointer.down = false;
   pointer.right = false;
   game = null;
+  if (typeof window !== 'undefined') window.game = null;
   refreshBestScoreUI();
 }
 
@@ -175,6 +215,7 @@ function togglePause() {
     pointer.right = false;
     show(pauseScreen);
   } else {
+    last = performance.now();
     hide(pauseScreen);
   }
 }
@@ -216,12 +257,12 @@ function updateHud() {
   $('medkit-text').textContent = '医疗包 ×' + s.medkits + ' (Q/E)';
 
   const slots = $('weapon-slots');
-  slots.innerHTML = s.weapons.map(function (w) {
+  slots.innerHTML = s.weapons.map(function (w, i) {
     return (
       '<div class="slot ' +
       (w.active ? 'active' : '') +
       (w.empty ? ' empty' : '') +
-      '"><div class="key">' +
+      '" data-slot="' + i + '"><div class="key">' +
       w.key +
       '</div><div>' +
       w.name +
@@ -252,8 +293,15 @@ function updateHud() {
 }
 
 function loop(ts) {
+  if (!game || !playing) {
+    raf = 0;
+    return;
+  }
   raf = requestAnimationFrame(loop);
-  if (!game || !playing) return;
+  if (game.paused) {
+    last = ts;
+    return;
+  }
 
   const dt = Math.min(0.05, (ts - last) / 1000);
   last = ts;
@@ -269,6 +317,8 @@ function loop(ts) {
 
   if (game.ended) {
     playing = false;
+    cancelAnimationFrame(raf);
+    raf = 0;
     pointer.down = false;
     pointer.right = false;
     setTimeout(showResult, 700);
@@ -311,12 +361,13 @@ function toggleFullscreen() {
   }
 }
 
-bind('btn-start', 'click', startGame);
-bind('btn-again', 'click', startGame);
+bind('btn-start', 'click', requestMatch);
+bind('btn-again', 'click', requestMatch);
 bind('btn-menu', 'click', backToMenu);
 bind('btn-resume', 'click', function () {
   if (game) {
     game.paused = false;
+    last = performance.now();
     hide(pauseScreen);
   }
 });
@@ -367,14 +418,31 @@ window.addEventListener('mousedown', function (e) {
   syncMouseToGame();
 });
 
-window.addEventListener('mouseup', function (e) {
-  if (e.button === 0) {
+function releasePointerButton(button) {
+  if (button === 0) {
     pointer.down = false;
     if (game) game.mouse.down = false;
   }
-  if (e.button === 2) {
+  if (button === 2) {
     pointer.right = false;
     if (game) game.mouse.right = false;
+  }
+}
+
+window.addEventListener('mouseup', function (e) {
+  releasePointerButton(e.button);
+});
+
+window.addEventListener('pointerup', function (e) {
+  releasePointerButton(e.button);
+});
+
+window.addEventListener('pointercancel', function () {
+  pointer.down = false;
+  pointer.right = false;
+  if (game) {
+    game.mouse.down = false;
+    game.mouse.right = false;
   }
 });
 
@@ -388,7 +456,9 @@ window.addEventListener('blur', function () {
 });
 
 window.addEventListener('touchstart', function (e) {
-  if (!playing || !game) return;
+  if (!playing || !game || game.paused || game.ended) return;
+  const raw = e.target;
+  if (raw && raw.closest && raw.closest('button, .slot, .screen, #weapon-slots')) return;
   if (e.touches.length === 1) {
     const t = e.touches[0];
     pointer.x = t.clientX;
@@ -430,7 +500,15 @@ window.addEventListener('keydown', function (e) {
     togglePause();
     return;
   }
-  if (!game || game.paused) return;
+  if (!game) return;
+  if (game.paused) {
+    game.keys.add(e.code);
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) {
+      e.preventDefault();
+    }
+    return;
+  }
+  if (game.ended || !playing) return;
   game.onKeyDown(e.code);
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) {
     e.preventDefault();
@@ -449,6 +527,27 @@ window.addEventListener('contextmenu', function (e) {
 window.addEventListener('dragstart', function (e) {
   if (playing) e.preventDefault();
 });
+
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden && playing && game && !game.paused && !game.ended) {
+    togglePause();
+  }
+});
+
+const weaponSlots = $('weapon-slots');
+if (weaponSlots) {
+  weaponSlots.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  weaponSlots.addEventListener('click', function (e) {
+    const slot = e.target.closest ? e.target.closest('[data-slot]') : null;
+    if (!slot || !game || game.paused || game.ended) return;
+    const index = Number(slot.getAttribute('data-slot'));
+    if (!Number.isFinite(index)) return;
+    game.onKeyDown('Digit' + (index + 1));
+    game.onKeyUp('Digit' + (index + 1));
+    pointer.right = false;
+    updateHud();
+  });
+}
 
 resize();
 updateCrosshair();
