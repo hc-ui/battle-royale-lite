@@ -1,0 +1,8 @@
+{
+  "name": "battle-royale-lite",
+  "private": true,
+  "scripts": {
+    "test": "node tests/test_spatial.js",
+    "build": "node _build_with_spatial.js"
+  }
+}
