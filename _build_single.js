@@ -75,7 +75,7 @@ ${css}
           <ul>
             <li><kbd>W A S D</kbd> 移动 · <kbd>Shift</kbd> 冲刺</li>
             <li><kbd>鼠标</kbd> 瞄准 · <kbd>左键</kbd> 射击</li>
-            <li><kbd>右键</kbd> / <kbd>C</kbd> 狙击开镜（约 2.3	imes）</li>
+            <li><kbd>右键</kbd> / <kbd>C</kbd> 狙击开镜（约 2.3\u00d7）</li>
             <li><kbd>R</kbd> 换弹 · <kbd>F</kbd> 拾枪 · 补给自动捡</li>
             <li><kbd>1-4</kbd> 切枪 · <kbd>Q/E</kbd> 医疗 · <kbd>M</kbd> 音效</li>
           </ul>
